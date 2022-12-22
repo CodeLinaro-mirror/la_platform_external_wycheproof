@@ -14,6 +14,7 @@
 package com.google.security.wycheproof;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeTrue;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -29,6 +30,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import javax.crypto.KeyAgreement;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.Ignore;
 import android.security.keystore.KeyProtection;
@@ -45,6 +47,16 @@ public class JsonEcdhTest {
   @After
   public void tearDown() throws Exception {
     KeyStoreUtil.cleanUpKeyStore();
+  }
+
+  @Before
+  public void setup() {
+    // In this test class ECDH keys are imported for key agreement (PURPOSE_AGREE_KEY).
+    // KeyMaster could support this key import through software emulation,
+    // but currently it is missing (b/216434270). Hence, this assumption is added till ECDH
+    // key import software emulation is not implemented.
+    assumeTrue("PURPOSE_AGREE_KEY is supported in KeyMint version 1 and above.",
+            KeyStoreUtil.getFeatureVersionKeystore() >= KeyStoreUtil.KM_VERSION_KEYMINT_1);
   }
 
   /** Convenience mehtod to get a String from a JsonObject */
@@ -88,6 +100,9 @@ public class JsonEcdhTest {
    *     ...
    **/
   public void testEcdhComp(String filename) throws Exception {
+    testEcdhComp(filename, false);
+  }
+  public void testEcdhComp(String filename, boolean isStrongBox) throws Exception {
     JsonObject test = JsonUtil.getTestVectors(this.getClass(), filename);
 
     // This test expects test vectors as defined in wycheproof/schemas/ecdh_test_schema.json.
@@ -122,6 +137,7 @@ public class JsonEcdhTest {
 
           KeyStore keyStore = KeyStoreUtil.saveKeysToKeystore(KEY_ALIAS_1, pubKey, privKey,
                                  new KeyProtection.Builder(KeyProperties.PURPOSE_AGREE_KEY)
+                                 .setIsStrongBoxBacked(isStrongBox)
                                  .build());
           KeyAgreement ka = KeyAgreement.getInstance("ECDH", EXPECTED_PROVIDER_NAME);
           PrivateKey keyStorePrivateKey = (PrivateKey) keyStore.getKey(KEY_ALIAS_1, null);
@@ -156,6 +172,8 @@ public class JsonEcdhTest {
             passedTests++;
           }
         } catch (InvalidKeySpecException | InvalidKeyException | NoSuchAlgorithmException ex) {
+          Log.e(TAG,
+                  "Test vector with tcId:" + tcid + " comment:" + comment + " throws:" + ex.toString());
           // These are the exception that we expect to see when a curve is not implemented
           // or when a key is not valid.
           if (result.equals("valid")) {
@@ -172,29 +190,31 @@ public class JsonEcdhTest {
       }
     }
     assertEquals(0, errors);
-    assertEquals(numTests, passedTests);
+    assertEquals(numTests, passedTests + rejectedTests);
   }
 
   @Test
-  @Ignore //TODO Reverify after bug b/215175472 is fixed.
   public void testSecp224r1() throws Exception {
     testEcdhComp("ecdh_secp224r1_test.json");
   }
 
   @Test
-  @Ignore //TODO Reverify after bug b/215175472 is fixed.
   public void testSecp256r1() throws Exception {
     testEcdhComp("ecdh_secp256r1_test.json");
   }
-
   @Test
   @Ignore //TODO Reverify after bug b/215175472 is fixed.
+  public void testSecp256r1_StrongBox() throws Exception {
+    KeyStoreUtil.assumeStrongBox();
+    testEcdhComp("ecdh_secp256r1_test.json", true);
+  }
+
+  @Test
   public void testSecp384r1() throws Exception {
     testEcdhComp("ecdh_secp384r1_test.json");
   }
 
   @Test
-  @Ignore //TODO Reverify after bug b/215175472 is fixed.
   public void testSecp521r1() throws Exception {
     testEcdhComp("ecdh_secp521r1_test.json");
   }
