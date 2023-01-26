@@ -15,7 +15,6 @@ package android.keystore.cts.util;
 
 import android.content.Context;
 import android.security.keystore.KeyProtection;
-import android.keystore.cts.util.TestUtils;
 import androidx.test.core.app.ApplicationProvider;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -87,10 +86,6 @@ public class KeyStoreUtil {
         }
     }
 
-    public static int getFeatureVersionKeystore() {
-       return TestUtils.getFeatureVersionKeystore(ApplicationProvider.getApplicationContext());
-    }
-
     public static boolean hasStrongBox() {
         Context context = ApplicationProvider.getApplicationContext();
         return TestUtils.hasStrongBox(context);
@@ -106,7 +101,7 @@ public class KeyStoreUtil {
     }
 
     public static boolean isStrongBoxSupportKeySize(int keySize) {
-        return keySize == 1024 || keySize == 2048;
+        return keySize == 2048;
     }
 
     public static X509Certificate createCertificate(
